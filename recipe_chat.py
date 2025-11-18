@@ -194,10 +194,61 @@ def handle_substitution_query(query):
 
     return(False)
 
-def handle_cooking_time_or_temp_query(query):
+def handle_cooking_time_query(query, steps, time_or_temp_covered):
     """Handle cooking time or temperature questions."""
+    if time_or_temp_covered:
+        return(False)
 
-    pass #todo
+    q = query.lower().strip()
+
+    #stole straight from parser for consistency
+    actions = ["bake", "roast", "broil", "grill", "toast", "sear",
+        "boil", "simmer", "poach", "steam", "blanch", "parboil",
+        "fry", "deep-fry", "pan-fry", "saute", "sautee", "stir-fry",
+        "braise", "stew", "microwave", "smoke", "char", "caramelize", "reduce"
+    ]
+    time_mentioned = ("how long" in q) or ("time" in q)
+
+    found_action = None
+    for action in actions:
+        if re.search(rf'\b{action}\b', q):
+            found_action = action
+            break
+
+    if (found_action and time_mentioned):
+        for step in steps:
+            if found_action in step.description.lower():
+                print(f"Step {step.step_number}: {step.description}")
+        return(True)
+    
+    print("Couldn't find any relevant cooking time information.")
+    return(False)
+
+
+def handle_cooking_temp_query(query, steps):
+    """Handle cooking time or temperature questions."""
+    q = query.lower().strip()
+
+    temp_mentioned = ("temp" in q) or ("temperature" in q) or ("heat" in q) or \
+    ("when is it done" in q) or ("degree" in q )
+    temp_keywords = ["degree", "°", "preheat", "oven", "heat to"]
+
+    found_temp_keyword = False
+
+    if (temp_mentioned == False):
+        return(False)
+
+    if temp_mentioned:
+        for step in steps:
+            for keyword in temp_keywords:
+                if keyword in step.description.lower():
+                    found_temp_keyword = True
+                    print(f"Step {step.step_number}: {step.description}")
+                    break
+        if found_temp_keyword:
+            return(True)
+    print("Couldn't find any relevant cooking temperature information.")
+    return(False)
 
 
 def handle_how_much_question(ingredients, query, fsm):
@@ -469,7 +520,14 @@ def process_user_query(ingredients, steps, fsm, query):
         show_current_step(fsm)
         return(True)
     
-    if handle_cooking_time_or_temp_query(query_lower):
+    time_or_temp_covered = False
+
+    if handle_cooking_temp_query(query, steps):
+        #time and temp have overlap and return same info a lot of times
+        time_or_temp_covered = True
+        return(True)
+    
+    if handle_cooking_time_query(query, steps, time_or_temp_covered):
         return(True)
     
     if handle_substitution_query(query_lower):
