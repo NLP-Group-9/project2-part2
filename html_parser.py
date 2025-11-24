@@ -158,8 +158,11 @@ def get_raw_ingredients_instructions(url):
     if config is None:
         raise ValueError(f"Unsupported website. URL: {url}")
     
-    # Read url
-    response = requests.get(url)
+    # Read url with user-agent header (some sites block requests without it)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.content, 'html.parser')
 
     # Set empty lists
@@ -172,6 +175,11 @@ def get_raw_ingredients_instructions(url):
         ingredient_config["tag"], 
         class_=ingredient_config["class"]
     )
+    
+    # If no ingredients found, try alternative selectors
+    if len(ingredient_items) == 0:
+        # Try without class restriction
+        ingredient_items = soup.find_all(ingredient_config["tag"])
     
     for item in ingredient_items:
         # Check if this is Food Network (unstructured ingredient text)
@@ -267,6 +275,20 @@ def get_raw_ingredients_instructions(url):
             instruction_config["tag"],
             class_=instruction_config["class"]
         )
+    
+    # If no instructions found, try alternative selectors
+    if len(instruction_items) == 0:
+        # Try common instruction patterns
+        if "allrecipes.com" in url:
+            # Try alternative AllRecipes selectors
+            instruction_items = soup.find_all('li', class_=lambda x: x and 'mntl-sc-block' in str(x))
+            if len(instruction_items) == 0:
+                instruction_items = soup.find_all('p', class_=lambda x: x and 'mntl-sc-block' in str(x))
+        elif "seriouseats.com" in url:
+            # Try alternative Serious Eats selectors
+            instruction_items = soup.find_all('li', class_=lambda x: x and 'structured-instructions' in str(x))
+            if len(instruction_items) == 0:
+                instruction_items = soup.find_all('p', class_=lambda x: x and 'comp' in str(x))
     
     for item in instruction_items:
         # Get the text from each instruction paragraph

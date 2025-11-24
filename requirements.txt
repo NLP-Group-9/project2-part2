@@ -1,3 +1,5 @@
 requests
 beautifulsoup4
 spacy
+flask
+flask-cors

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipe Chat - Voice Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-voice {
+            background: #ff6b6b;
+            color: white;
+            min-width: 150px;
+            justify-content: center;
+        }
+
+        .btn-voice:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-voice.recording {
+            background: #ff1744;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .response-area {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .response-area:empty::before {
+            content: "Your responses will appear here...";
+            color: #999;
+            font-style: italic;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .voice-icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .query-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .query-input-group input {
+            flex: 1;
+        }
+
+        .query-input-group button {
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 600px) {
+            .input-group, .query-input-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍳 Recipe Chat</h1>
+            <p>Voice-Enabled Recipe Assistant</p>
+        </div>
+
+        <div class="content">
+            <!-- Recipe URL Input Section -->
+            <div class="section">
+                <div class="section-title">1. Enter Recipe URL</div>
+                <div class="input-group">
+                    <input type="text" id="recipeUrl" placeholder="https://www.allrecipes.com/recipe/..." />
+                    <button class="btn-primary" onclick="parseRecipe()">
+                        Parse Recipe
+                    </button>
+                </div>
+                <div id="parseStatus"></div>
+            </div>
+
+            <!-- Query Section -->
+            <div class="section">
+                <div class="section-title">2. Ask a Question</div>
+                <div class="query-input-group">
+                    <input type="text" id="queryInput" placeholder="Type your question or click the microphone..." />
+                    <button class="btn-voice" id="voiceButton" onclick="toggleVoiceRecognition()">
+                        <span class="voice-icon">🎤</span>
+                        <span id="voiceButtonText">Voice</span>
+                    </button>
+                    <button class="btn-primary" onclick="sendQuery()">
+                        Ask
+                    </button>
+                </div>
+                <div id="queryStatus"></div>
+            </div>
+
+            <!-- Response Section -->
+            <div class="section">
+                <div class="section-title">Response</div>
+                <div class="response-area" id="responseArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use relative URLs since frontend is served from Flask
+        const API_BASE = '/api';
+        let recognition = null;
+        let isRecording = false;
+
+        // Initialize speech recognition
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = () => {
+                    isRecording = true;
+                    updateVoiceButton(true);
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('queryInput').value = transcript;
+                    recognition.stop();
+                    isRecording = false;
+                    updateVoiceButton(false);
+                    // Automatically send the query after speech recognition
+                    sendQuery();
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    showStatus('queryStatus', 'Error with speech recognition: ' + event.error, 'error');
+                    isRecording = false;
+                    updateVoiceButton(false);
+                };
+
+                recognition.onend = () => {
+                    isRecording = false;
+                    updateVoiceButton(false);
+                };
+            } else {
+                showStatus('queryStatus', 'Speech recognition not supported in this browser. Please use Chrome or Edge.', 'error');
+            }
+        }
+
+        function updateVoiceButton(recording) {
+            const button = document.getElementById('voiceButton');
+            const text = document.getElementById('voiceButtonText');
+            if (recording) {
+                button.classList.add('recording');
+                text.textContent = 'Listening...';
+            } else {
+                button.classList.remove('recording');
+                text.textContent = 'Voice';
+            }
+        }
+
+        function toggleVoiceRecognition() {
+            if (!recognition) {
+                initSpeechRecognition();
+                if (!recognition) return;
+            }
+
+            if (isRecording) {
+                recognition.stop();
+                isRecording = false;
+                updateVoiceButton(false);
+            } else {
+                recognition.start();
+            }
+        }
+
+        async function parseRecipe() {
+            const url = document.getElementById('recipeUrl').value.trim();
+            if (!url) {
+                showStatus('parseStatus', 'Please enter a recipe URL', 'error');
+                return;
+            }
+
+            showStatus('parseStatus', 'Parsing recipe...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/parse`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    showStatus('parseStatus', errorData.error || `Server error: ${response.status}`, 'error');
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus('parseStatus', data.message, 'success');
+                    document.getElementById('responseArea').textContent = '';
+                } else {
+                    showStatus('parseStatus', data.error || 'Error parsing recipe', 'error');
+                }
+            } catch (error) {
+                let errorMsg = 'Error connecting to server. ';
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMsg += 'Make sure the Flask server is running (python app.py).';
+                } else {
+                    errorMsg += error.message;
+                }
+                showStatus('parseStatus', errorMsg, 'error');
+                console.error('Parse error:', error);
+            }
+        }
+
+        async function sendQuery() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) {
+                showStatus('queryStatus', 'Please enter a question', 'error');
+                return;
+            }
+
+            showStatus('queryStatus', 'Processing query...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                    showStatus('queryStatus', errorData.error || `Server error: ${response.status}`, 'error');
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('responseArea').textContent = data.response;
+                    document.getElementById('queryInput').value = '';
+                    showStatus('queryStatus', '', 'info');
+                } else {
+                    showStatus('queryStatus', data.error || 'Error processing query', 'error');
+                }
+            } catch (error) {
+                let errorMsg = 'Error connecting to server. ';
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    errorMsg += 'Make sure the Flask server is running (python app.py).';
+                } else {
+                    errorMsg += error.message;
+                }
+                showStatus('queryStatus', errorMsg, 'error');
+                console.error('Query error:', error);
+            }
+        }
+
+        function showStatus(elementId, message, type) {
+            const statusDiv = document.getElementById(elementId);
+            if (!message) {
+                statusDiv.innerHTML = '';
+                statusDiv.className = 'status hidden';
+                return;
+            }
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        // Allow Enter key to send query
+        document.getElementById('queryInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendQuery();
+            }
+        });
+
+        document.getElementById('recipeUrl').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                parseRecipe();
+            }
+        });
+
+        // Check server connection on page load
+        async function checkServerConnection() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (response.ok) {
+                    showStatus('parseStatus', '✓ Server connected', 'success');
+                    setTimeout(() => showStatus('parseStatus', '', 'info'), 3000);
+                } else {
+                    showStatus('parseStatus', '⚠ Server responded with error', 'error');
+                }
+            } catch (error) {
+                showStatus('parseStatus', '⚠ Cannot connect to server. Make sure Flask is running (python app.py)', 'error');
+            }
+        }
+
+        // Initialize speech recognition on page load
+        window.addEventListener('load', () => {
+            initSpeechRecognition();
+            checkServerConnection();
+        });
+    </script>
+</body>
+</html>
+
