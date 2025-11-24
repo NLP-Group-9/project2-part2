@@ -158,18 +158,9 @@ def get_raw_ingredients_instructions(url):
     if config is None:
         raise ValueError(f"Unsupported website. URL: {url}")
     
-    print(f"\n=== DEBUGGING FOR: {url} ===")
-    print(f"Config: {config}")
-    
-    #spoof user agent to avoid blocks (especially from the foodnework.com site) STILL DOESN'T WORK
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    response = requests.get(url, headers=headers)
+    # Read url
+    response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
-    
-    print(f"Response status: {response.status_code}")
-    print(f"Page title: {soup.title.string if soup.title else 'No title'}")
 
     # Set empty lists
     ingredients = []
@@ -177,20 +168,10 @@ def get_raw_ingredients_instructions(url):
 
     # Extract ingredients using config
     ingredient_config = config["ingredient_item"]
-    print(f"\nIngredient config: {ingredient_config}")
-    print(f"Looking for tag='{ingredient_config['tag']}', class='{ingredient_config['class']}'")
-    
-    # Test direct search
-    test_ing = soup.find_all("span", class_="o-Ingredients__a-Ingredient--CheckboxLabel")
-    print(f"Direct search found {len(test_ing)} ingredients")
-    if len(test_ing) > 0:
-        print(f"First ingredient (direct): {test_ing[0].get_text(strip=True)}")
-    
     ingredient_items = soup.find_all(
         ingredient_config["tag"], 
         class_=ingredient_config["class"]
     )
-    print(f"Config search found {len(ingredient_items)} ingredients")
     
     for item in ingredient_items:
         # Check if this is Food Network (unstructured ingredient text)
@@ -198,9 +179,11 @@ def get_raw_ingredients_instructions(url):
         
         if fields_config is None:
             # Food Network style: single text string
+            # e.g., "1 pound (4 sticks) unsalted butter, at room temperature"
             ingredient_text = item.get_text(strip=True)
-            print(f"Adding ingredient: {ingredient_text}")
             
+            # For now, just store the whole text as the name
+            # We'll parse it later with a dedicated function
             ingredient = Ingredient(name=ingredient_text, quantity="", measurement_unit="")
             ingredients.append(ingredient)
         else:
@@ -227,76 +210,69 @@ def get_raw_ingredients_instructions(url):
             name = clean_ingredient_name(name)
 
             # Split on "and" to create separate ingredients
+            # e.g., "salt and ground black pepper" -> ["salt", "ground black pepper"]
             if ' and ' in name:
                 ingredient_parts = [part.strip() for part in name.split(' and ')]
                 for part in ingredient_parts:
-                    if part:
+                    if part:  # Only add non-empty parts
                         ingredient = Ingredient(name=part, quantity=quantity, measurement_unit=unit)
                         ingredients.append(ingredient)
             else:
+                # Create single Ingredient
                 ingredient = Ingredient(name=name, quantity=quantity, measurement_unit=unit)
                 ingredients.append(ingredient)
 
-    print(f"\nTotal ingredients extracted: {len(ingredients)}")
-
     # Extract instructions using config
     instruction_config = config["instruction_item"]
-    print(f"\nInstruction config: {instruction_config}")
-    print(f"Looking for tag='{instruction_config['tag']}', class='{instruction_config['class']}'")
     
-    # Test direct search
-    test_inst = soup.find_all("li", class_="o-Method__m-Step")
-    print(f"Direct search found {len(test_inst)} instructions")
-    if len(test_inst) > 0:
-        print(f"First instruction (direct): {test_inst[0].get_text(strip=True)[:100]}")
-    
-    # Special handling for Serious Eats
+    # Special handling for Serious Eats: find instructions within the instructions section
     if "seriouseats.com" in url:
+        # Find the instructions section container
         instructions_section = soup.find('section', id=lambda x: x and 'section--instructions' in x)
         
         if instructions_section:
+            # Get all paragraphs within this section that match the config
             instruction_items = instructions_section.find_all(
                 instruction_config["tag"],
                 class_=instruction_config["class"]
             )
         else:
+            # Fallback to original method if section not found
             instruction_items = soup.find_all(
                 instruction_config["tag"],
                 class_=instruction_config["class"]
             )
     
-    # Special handling for AllRecipes
+    # Special handling for AllRecipes: find instructions within the mm-recipes-steps container
     elif "allrecipes.com" in url:
+        # Find the instructions section container
         instructions_section = soup.find('div', id=lambda x: x and 'mm-recipes-steps' in x)
         
         if instructions_section:
+            # Get all paragraphs within this section that match the config
             instruction_items = instructions_section.find_all(
                 instruction_config["tag"],
                 class_=instruction_config["class"]
             )
         else:
+            # Fallback to original method if section not found
             instruction_items = soup.find_all(
                 instruction_config["tag"],
                 class_=instruction_config["class"]
             )
     
     else:
-        # For other sites (including Food Network)
+        # For other sites (including Food Network), use the original method
         instruction_items = soup.find_all(
             instruction_config["tag"],
             class_=instruction_config["class"]
         )
     
-    print(f"Config search found {len(instruction_items)} instructions")
-    
     for item in instruction_items:
+        # Get the text from each instruction paragraph
         instruction_text = item.get_text(strip=True)
-        if instruction_text:
-            print(f"Adding instruction: {instruction_text[:80]}...")
+        if instruction_text:  # Only add non-empty instructions
             instructions.append(instruction_text)
-
-    print(f"\nTotal instructions extracted: {len(instructions)}")
-    print("=== END DEBUG ===\n")
 
     return ingredients, instructions
 
