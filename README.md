@@ -4,6 +4,7 @@ A web-based recipe parsing and querying system that uses NLP to extract and answ
 
 **Python version:** 3.11.9  
 **GitHub:** https://github.com/NLP-Group-9/project2
+**Gemini model:** gemini-2.5-flash-lite
 
 ## Quick Start
 
@@ -14,13 +15,19 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
-### Run the Application
+### Run the Application For GUI (Voice + Text)
 
 ```bash
 python app.py
 ```
 
 Then open your browser to `http://localhost:5000`
+
+### Run the Application For text based interaction
+
+```bash
+python recipe_chat.py
+```
 
 ## Usage
 
@@ -67,17 +74,7 @@ Then open your browser to `http://localhost:5000`
 - Firefox (text input only)
 
 ## Parsing Logic
-
-1. **Ingredient and Instruction Extraction:** Uses BeautifulSoup to parse HTML and identify structured data tags
-2. **Ingredient Parsing:** Extracts quantity, unit, and name from structured HTML tags
-3. **Instruction Atomization:** Splits instructions by conjunctions using spaCy NLP
-4. **Instruction Parsing:** Identifies ingredients, tools, methods, times, temperatures, types in each step
-   - Ingredients: Substring matching against recipe ingredients
-   - Tools: Hardcoded list of cooking tools
-   - Methods: Hardcoded list + spaCy verb tagging
-   - Time: Regex patterns for duration (minutes, hours, etc.)
-   - Temperature: Regex patterns for degrees and heat levels
-   - Type: based on Observation, Advice, and Warning keywords.
+All Parsing is handled by Google's Gemini. Model is specified in the header of this README
 
 ## Extra Credit Features
 
