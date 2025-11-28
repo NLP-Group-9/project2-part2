@@ -1,66 +1,50 @@
-"""
-Flask backend API for recipe chat interface.
-"""
-
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from html_parser import process_url
 import google.generativeai as genai
 import json
+import os
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend
 
-GEMINI_API_KEY = "AIzaSyBdbrADPwUJq2hB4AfVBAIQhtGLKTXeRnY"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = "gemini-2.5-flash-lite"
 
-# Global state to store parsed recipe data and conversation history
+# Global state to store parsed recipe data
 recipe_data = {
     'recipe': None,
     'url': None
 }
 
-# Store conversation histories per session (simplified - in production use sessions)
-conversation_histories = {}
+# Store chat sessions per session (simplified - in production use proper sessions)
+chat_sessions = {}
 
-def query_gemini(recipe_data, conversation_history, query):
+
+def create_chat_session(recipe_data):
     """
-    Send a user query to Gemini along with recipe context and full conversation history.
+    Create a new Gemini chat session with recipe context.
     
     Args:
         recipe_data: Dict with 'ingredients' and 'instructions' keys
-        conversation_history: List of dicts with 'user' and 'assistant' messages
-        query: User's current question
     
     Returns:
-        str: Gemini's response
+        chat session object
     """
     # Configure Gemini API
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel(GEMINI_MODEL)
     
-    # Build conversation history string
-    history_text = ""
-    if conversation_history:
-        history_text = "CONVERSATION HISTORY:\n"
-        for i, exchange in enumerate(conversation_history, 1):
-            history_text += f"\nUser: {exchange['user']}\n"
-            history_text += f"Assistant: {exchange['assistant']}\n"
-        history_text += "\n"
-    
-    # Create context-aware prompt
-    prompt = f"""
+    # Create initial system-like message with recipe context
+    initial_prompt = f"""
 You are a helpful cooking assistant with conversation memory. You can help users navigate through a recipe step-by-step.
 
 FULL RECIPE DATA:
 {json.dumps(recipe_data, indent=2)}
 
-{history_text}
-
-CURRENT USER QUESTION: {query}
-
-INSTRUCTIONS:
-- Track which step the user is currently on based on the conversation history
+INSTRUCTIONS FOR YOU:
+- Track which step the user is currently on based on our conversation
 - If they say "start", "begin", or "start recipe", begin at step 1
 - If they say "next" or "n", move to the next step
 - If they say "back", "b", or "previous", go to the previous step
@@ -68,19 +52,23 @@ INSTRUCTIONS:
 - If they ask "step X", jump to that step number
 - When presenting a step, format it clearly: "Step X: [instruction text]"
 - After showing a step, remind them they can say 'next', 'back', or ask questions
-- If they ask contextual questions like "how much of that?", "what temperature?", "how long?", refer to the current step based on conversation history
+- If they ask contextual questions like "how much of that?", "what temperature?", "how long?", refer to the current step based on our conversation
 - If asking about ingredients without context, provide exact quantities from the recipe
 - If the answer isn't in the recipe, say so politely and provide general cooking advice if appropriate
-- Keep track of where they are in the recipe across the entire conversation
+- Keep track of where they are in the recipe throughout our conversation
 
-Provide a helpful, concise answer to the current question.
+You should maintain context and remember which step the user is on as we talk.
+
+Respond with "Ready! I've loaded the recipe. You can ask me questions, or say 'start' to begin the step-by-step walkthrough."
 """
     
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"Sorry, I encountered an error: {str(e)}"
+    # Start chat session
+    chat = model.start_chat(history=[])
+    
+    # Send initial context
+    response = chat.send_message(initial_prompt)
+    
+    return chat
 
 
 @app.route('/api/parse', methods=['POST'])
@@ -123,7 +111,7 @@ def parse_recipe():
 @app.route('/api/query', methods=['POST'])
 def query_recipe():
     """Process a query about the recipe."""
-    global recipe_data, conversation_histories
+    global recipe_data, chat_sessions
     
     if not recipe_data['recipe']:
         return jsonify({'error': 'No recipe loaded. Please parse a recipe first.'}), 400
@@ -141,26 +129,17 @@ def query_recipe():
     if not query:
         return jsonify({'error': 'No query provided'}), 400
     
-    # Get or create conversation history for this session
-    if session_id not in conversation_histories:
-        conversation_histories[session_id] = []
+    # Get or create chat session for this session
+    if session_id not in chat_sessions:
+        chat_sessions[session_id] = create_chat_session(recipe_data['recipe'])
     
     try:
-        response = query_gemini(
-            recipe_data['recipe'],
-            conversation_histories[session_id],
-            query
-        )
-        
-        # Add to conversation history
-        conversation_histories[session_id].append({
-            'user': query,
-            'assistant': response
-        })
+        chat = chat_sessions[session_id]
+        response = chat.send_message(query)
         
         return jsonify({
             'success': True,
-            'response': response
+            'response': response.text
         })
     except Exception as e:
         return jsonify({'error': f'Error processing query: {str(e)}'}), 500
@@ -168,8 +147,8 @@ def query_recipe():
 
 @app.route('/api/reset', methods=['POST'])
 def reset_conversation():
-    """Reset the conversation history."""
-    global conversation_histories
+    """Reset the conversation by creating a new chat session."""
+    global chat_sessions, recipe_data
     
     if not request.is_json:
         return jsonify({'error': 'Request must be JSON'}), 400
@@ -177,12 +156,15 @@ def reset_conversation():
     data = request.get_json()
     session_id = data.get('session_id', 'default')
     
-    if session_id in conversation_histories:
-        conversation_histories[session_id] = []
+    if not recipe_data['recipe']:
+        return jsonify({'error': 'No recipe loaded. Please parse a recipe first.'}), 400
+    
+    # Create new chat session
+    chat_sessions[session_id] = create_chat_session(recipe_data['recipe'])
     
     return jsonify({
         'success': True,
-        'message': 'Conversation history reset'
+        'message': 'Conversation reset'
     })
 
 

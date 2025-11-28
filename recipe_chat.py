@@ -1,54 +1,36 @@
-"""
-Conversational interface for recipe parsing and querying.
-This is a stateless, rule-based interface that answers questions about recipes.
-"""
-
 import re
 from html_parser import process_url
 import google.generativeai as genai
 import json
+import os
+from dotenv import load_dotenv
 
-GEMINI_API_KEY = "AIzaSyBdbrADPwUJq2hB4AfVBAIQhtGLKTXeRnY"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_MODEL = "gemini-2.5-flash-lite"
 
-def query_gemini(recipe_data, conversation_history, query):
+def create_chat_session(recipe_data):
     """
-    Send a user query to Gemini along with recipe context and full conversation history.
+    Create a new Gemini chat session with recipe context.
     
     Args:
         recipe_data: Dict with 'ingredients' and 'instructions' keys
-        conversation_history: List of dicts with 'user' and 'assistant' messages
-        query: User's current question
     
     Returns:
-        str: Gemini's response
+        chat session object
     """
     # Configure Gemini API
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel(GEMINI_MODEL)
     
-    # Build conversation history string
-    history_text = ""
-    if conversation_history:
-        history_text = "CONVERSATION HISTORY:\n"
-        for i, exchange in enumerate(conversation_history, 1):
-            history_text += f"\nUser: {exchange['user']}\n"
-            history_text += f"Assistant: {exchange['assistant']}\n"
-        history_text += "\n"
-    
-    # Create context-aware prompt
-    prompt = f"""
+    # Create initial system-like message with recipe context
+    initial_prompt = f"""
 You are a helpful cooking assistant with conversation memory. You can help users navigate through a recipe step-by-step.
 
 FULL RECIPE DATA:
 {json.dumps(recipe_data, indent=2)}
 
-{history_text}
-
-CURRENT USER QUESTION: {query}
-
-INSTRUCTIONS:
-- Track which step the user is currently on based on the conversation history
+INSTRUCTIONS FOR YOU:
+- Track which step the user is currently on based on our conversation
 - If they say "start", "begin", or "start recipe", begin at step 1
 - If they say "next" or "n", move to the next step
 - If they say "back", "b", or "previous", go to the previous step
@@ -56,46 +38,67 @@ INSTRUCTIONS:
 - If they ask "step X", jump to that step number
 - When presenting a step, format it clearly: "Step X: [instruction text]"
 - After showing a step, remind them they can say 'next', 'back', or ask questions
-- If they ask contextual questions like "how much of that?", "what temperature?", "how long?", refer to the current step based on conversation history
+- If they ask contextual questions like "how much of that?", "what temperature?", "how long?", refer to the current step based on our conversation
 - If asking about ingredients without context, provide exact quantities from the recipe
 - If the answer isn't in the recipe, say so politely and provide general cooking advice if appropriate
-- Keep track of where they are in the recipe across the entire conversation
+- Keep track of where they are in the recipe throughout our conversation
 
-Provide a helpful, concise answer to the current question.
+You should maintain context and remember which step the user is on as we talk.
+
+Respond with "Ready! I've loaded the recipe. You can ask me questions, or say 'start' to begin the step-by-step walkthrough."
 """
     
+    # Start chat session
+    chat = model.start_chat(history=[])
+    
+    # Send initial context
+    response = chat.send_message(initial_prompt)
+    
+    return chat
+
+
+def query_gemini_chat(chat, query):
+    """
+    Send a user query through the chat session.
+    
+    Args:
+        chat: Active chat session
+        query: User's current question
+    
+    Returns:
+        str: Gemini's response
+    """
     try:
-        response = model.generate_content(prompt)
+        response = chat.send_message(query)
         return response.text
     except Exception as e:
         return f"Sorry, I encountered an error: {str(e)}"
 
 
-def process_user_query(recipe_data, conversation_history, query):
+def process_user_query(chat, query):
     """
     Process a user query and return appropriate response.
     
     Args:
-        recipe_data: Dict with 'ingredients' and 'instructions' keys
-        conversation_history: List of conversation exchanges
+        chat: Active chat session
         query: User query string
     
     Returns:
-        tuple: (should_continue: bool, assistant_response: str)
+        bool: True if should continue, False if should exit
     """
     query_lower = query.lower().strip()
     
     # Check for exit
     if query_lower in ['quit', 'exit', 'q']:
         print("\nGoodbye!")
-        return False, None
+        return False
     
-    # Send to Gemini for processing
+    # Send to Gemini chat
     print("\nThinking...")
-    response = query_gemini(recipe_data, conversation_history, query)
+    response = query_gemini_chat(chat, query)
     print(f"\n{response}")
     
-    return True, response
+    return True
 
 
 def main():
@@ -110,8 +113,8 @@ def main():
         print("No URL provided. Exiting.")
         return
     
-    # Parse the recipe with Gemini
-    print("\nParsing recipe with AI...")
+    # Parse the recipe
+    print("\nParsing recipe...")
     try:
         recipe_data = process_url(url)
         print(f"Successfully parsed recipe with {len(recipe_data['ingredients'])} ingredients and {len(recipe_data['instructions'])} steps!")
@@ -119,8 +122,9 @@ def main():
         print(f"Error parsing recipe: {e}")
         return
     
-    # Initialize conversation history
-    conversation_history = []
+    # Create chat session with recipe context
+    print("\nInitializing AI assistant...")
+    chat = create_chat_session(recipe_data)
     
     # Enter conversation loop
     print("\n" + "=" * 50)
@@ -135,17 +139,10 @@ def main():
         if not query:
             continue
         
-        should_continue, assistant_response = process_user_query(recipe_data, conversation_history, query)
+        should_continue = process_user_query(chat, query)
         
         if not should_continue:
             break
-        
-        # Add this exchange to conversation history
-        if assistant_response:
-            conversation_history.append({
-                'user': query,
-                'assistant': assistant_response
-            })
 
 
 if __name__ == "__main__":
