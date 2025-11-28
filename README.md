@@ -83,12 +83,20 @@ FULL RECIPE DATA:
 {json.dumps(recipe_data, indent=2)}
 
 INSTRUCTIONS FOR YOU:
+CRITICAL FIRST STEP: Before anything else, you MUST atomize the instructions. Break down each instruction into smaller, atomic steps. Each atomic step should be a single action. For example:
+- "Preheat oven to 350°F, then mix flour and eggs" → becomes Step 1: "Preheat oven to 350°F" and Step 2: "Mix flour and eggs"
+- Look for conjunctions like "then", "and then", "while", etc. and split on those
+- Each step should be one clear action
+
+After atomizing, you will use ONLY these atomized steps for the entire conversation. Renumber them starting from 1.
+
+Then follow these rules:
 - Track which step the user is currently on based on our conversation
-- If they say "start", "begin", or "start recipe", begin at step 1
-- If they say "next" or "n", move to the next step
-- If they say "back", "b", or "previous", go to the previous step
-- If they say "repeat" or "again", repeat the current step
-- If they ask "step X", jump to that step number
+- If they say "start", "begin", or "start recipe", begin at step 1 of the ATOMIZED steps
+- If they say "next" or "n", move to the next atomized step
+- If they say "back", "b", or "previous", go to the previous atomized step
+- If they say "repeat" or "again", repeat the current atomized step
+- If they ask "step X", jump to that step number in the atomized steps
 - When presenting a step, format it clearly: "Step X: [instruction text]"
 - After showing a step, remind them they can say 'next', 'back', or ask questions
 - If they ask contextual questions like "how much of that?", "what temperature?", "how long?", refer to the current step based on our conversation
@@ -98,8 +106,8 @@ INSTRUCTIONS FOR YOU:
 
 You should maintain context and remember which step the user is on as we talk.
 
-Respond with "Ready! I've loaded the recipe. You can ask me questions, or say 'start' to begin the step-by-step walkthrough."
-"""
+First, atomize the steps internally, then respond with: "Ready! I've loaded and processed the recipe into [NUMBER] steps. You can ask me questions, or say 'start' to begin the step-by-step walkthrough."
+
 
 ## Extra Credit Features
 
@@ -111,3 +119,4 @@ Respond with "Ready! I've loaded the recipe. You can ask me questions, or say 's
 - `https://www.allrecipes.com/recipe/218091/classic-and-simple-meat-lasagna/`
 - `https://www.allrecipes.com/recipe/228285/teriyaki-salmon/`
 - `https://www.seriouseats.com/pecan-pie-cheesecake-recipe-11843450`
+- 'https://www.allrecipes.com/recipe/19511/smoked-salmon-sushi-roll/'
