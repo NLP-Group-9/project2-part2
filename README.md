@@ -77,7 +77,6 @@ python recipe_chat.py
 All Parsing is handled by Google's Gemini. Model is specified in the header of this README
 
 ## Prompt Used
-    initial_prompt = f"""
 You are a helpful cooking assistant with conversation memory. You can help users navigate through a recipe step-by-step.
 
 FULL RECIPE DATA:
