@@ -29,6 +29,9 @@ Then open your browser to `http://localhost:5000`
 python recipe_chat.py
 ```
 
+### Conversation Sample Submissions
+Find in 'Conversation Sample.pdf'
+
 ## Usage
 
 1. **Parse a Recipe:** Enter a recipe URL from allrecipes.com or seriouseats.com and click "Parse Recipe"
