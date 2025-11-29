@@ -3,7 +3,7 @@
 A web-based recipe parsing and querying system that uses NLP to extract and answer questions about recipes from popular cooking websites.
 
 **Python version:** 3.11.9  
-**GitHub:** https://github.com/NLP-Group-9/project2
+**GitHub:** https://github.com/NLP-Group-9/project2-part2
 **Gemini model:** gemini-2.5-flash-lite
 
 ## Quick Start
