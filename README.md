@@ -15,6 +15,10 @@ pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
+### .env set up
+add a .env file into the folder with variable
+GEMINI_API_KEY=[YOUR GEMINI API KEY HERE]
+
 ### Run the Application For GUI (Voice + Text)
 
 ```bash
