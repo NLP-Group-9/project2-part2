@@ -47,7 +47,7 @@ FULL RECIPE DATA:
 
 INSTRUCTIONS FOR YOU:
 CRITICAL FIRST STEP: Before anything else, you MUST atomize the instructions. Break down each instruction into smaller, atomic steps. Each atomic step should be a single action. For example:
-- "Preheat oven to 350°F, then mix flour and eggs" → becomes Step 1: "Preheat oven to 350°F" and Step 2: "Mix flour and eggs"
+- "Preheat oven to 350°F, then mix flour and eggs" becomes Step 1: "Preheat oven to 350°F" and Step 2: "Mix flour and eggs"
 - Look for conjunctions like "then", "and then", "while", etc. and split on those
 - Each step should be one clear action
 
