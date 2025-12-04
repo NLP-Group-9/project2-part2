@@ -4,7 +4,6 @@ from data_classes import Ingredient, Step
 import re
 import spacy
 import json
-from recipe_state_machine import RecipeStateMachine
 
 WEBSITE_CONFIGS = {
     "allrecipes.com": {
@@ -259,8 +258,6 @@ def main():
 
     url = url1 #to test other
     ingredients, instructions = process_url(url)
-
-    fsm = RecipeStateMachine(instructions)
     
     print("Ingredients:")
     for ingredient in ingredients:
